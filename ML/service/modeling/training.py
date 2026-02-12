@@ -110,5 +110,73 @@ def train_xgb_classifier(
     return model
 
 
+def train_with_tuned_params(X, y, best_params: dict, random_state: int = 42):
+    """
+    Optuna가 찾은 최적 하이퍼파라미터로 모델 학습
+
+    Parameters
+    ----------
+    X : 훈련 피처 데이터
+    y : 훈련 타겟 데이터
+    best_params : Optuna best_trial.params 딕셔너리
+    random_state : 랜덤 시드
+    """
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import f1_score
+    import numpy as np
+
+    from .model import build_xgb_classifier
+
+    model = build_xgb_classifier(
+        random_state=random_state,
+        **best_params,
+        n_estimators=2000,
+        early_stopping_rounds=100,
+        eval_metric='logloss',
+    )
+
+    # Early stopping용 검증 세트 분할
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y, test_size=0.2, random_state=random_state, stratify=y
+    )
+
+    model.fit(
+        X_train, y_train,
+        eval_set=[(X_val, y_val)],
+        verbose=False,
+    )
+
+    # 최적 임계값 탐색 (기존 로직 유지)
+    y_val_proba = model.predict_proba(X_val)[:, 1]
+    best_f1 = 0
+    best_threshold = 0.5
+
+    for threshold in np.arange(0.15, 0.85, 0.01):
+        y_val_pred = (y_val_proba > threshold).astype(int)
+        f1 = f1_score(y_val, y_val_pred)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+
+    # 정밀 탐색
+    for threshold in np.arange(
+        max(0.1, best_threshold - 0.03),
+        min(0.9, best_threshold + 0.03),
+        0.001
+    ):
+        y_val_pred = (y_val_proba > threshold).astype(int)
+        f1 = f1_score(y_val, y_val_pred)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+
+    model.best_threshold_ = best_threshold
+    model.best_f1_ = best_f1
+
+    print(f"  최적 임계값: {best_threshold:.3f}")
+    print(f"  내부 검증 F1: {best_f1:.3f}")
+
+    return model
+
 
 
