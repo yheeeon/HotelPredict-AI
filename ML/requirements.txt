@@ -4,6 +4,7 @@ pandas
 scikit-learn
 seaborn
 xgboost
+optuna
 jupyter
 easydict
 mysql
