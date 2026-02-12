@@ -358,13 +358,36 @@ def drop_original_columns(X_tr: pd.DataFrame, X_te: pd.DataFrame) -> Tuple[pd.Da
 ![f1_score_param_changes](README_pic/f1_score_param_changes.png)
 
 ### 최종 모델 성능
-| 지표 | 훈련 데이터 | 검증 데이터 |
-| :--- | :--- | :--- |
-| 정확도 (Accuracy) | 0.9508 | 0.8419 |
-| 정밀도 (Precision) | 0.8723 | 0.7356 |
-| 재현율 (Recall) | 0.9474 | 0.7051 |
-| F1-점수 (F1-Score) | 0.9083 | 0.7051 |
-| AUC | 0.9852 | 0.8986 |
+| 지표 | 훈련 데이터 | 검증 데이터 | 상태 |
+| :--- | :--- | :--- | :--- |
+| 정확도 (Accuracy) | 0.9121 | 0.8762 | - |
+| 정밀도 (Precision) | 0.7758 | 0.7110 | - |
+| 재현율 (Recall) | 0.9258 | 0.8734 | - |
+| **F1-Score** | **0.8442** | **0.7838** | **목표 달성 (F1 > 0.7)** ✅ |
+| **F1 Gap** | **-** | **0.0604** (CV 0.03) | **목표 달성 (Gap ~0.05)** ✅ |
+| **AUC** | **0.9748** | **0.9531** | **매우 높음** ✅ |
+
+<br>
+
+## 🚀 모델 최적화 및 오버피팅 해결 (Optimization & Overfitting Fix)
+
+### 1. 문제점 (Problem): 심각한 과적합(Overfitting) 발생
+- **현상**: 초기 모델 구동 시 훈련 데이터 F1(0.91)과 검증 데이터 F1(0.70) 사이의 차이가 **0.2032**에 달함.
+- **원인**: 핵심 시그널(`deposit_type` 등)의 유실과 고차원 피처(`country` 등)의 단순 인코딩으로 인해 모델이 노이즈를 암기함.
+
+### 2. 해결 방안 (Solution): Feature Enrichment & Target Encoding
+- **핵심 피처 복구**: 취소율 95% 이상의 강력한 지표인 `deposit_type`을 다시 모델에 포함.
+- **Target Encoding 도입**: `country`, `agent` 등 100개 이상의 범주를 가진 피처를 **평균 취소율**로 수치화하여 시그널은 극대화하고 복잡도는 최소화.
+- **Optuna Penalty Tuning**: K-Fold CV 과정에서 Gap이 0.05를 초과할 경우 대폭 감점하는 목적 함수를 통해 일반화 성능 강제.
+
+### 3. 개선 결과 (Result)
+| 항목 | 개선 전 (Initial) | 개선 후 (Enriched) | 개선 효과 |
+| :--- | :---: | :---: | :---: |
+| **Validation F1** | 0.7051 | **0.7838** | **약 11% 성능 향상** 📈 |
+| **F1 점수 차이 (Gap)** | **0.2032** | **0.0604** | **약 70% Overfitting 감소** ✅ |
+| **CV 평균 Gap** | - | **0.0346** | **안정적인 일반화 확보** ✅ |
+
+<br>
 
 <div align="center">
   <h4> 8. 솔루션 프로토타입: React vite 기반 추천 시스템</h4>
